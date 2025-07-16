@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+build/
+coverage/
+*.tsbuildinfo
+.turbo/
+
+# Generated files
+packages/widget/
+packages/widget-types/
+!packages/.gitkeep
+
+# Environment files
+.env
+.env.*
+
+# IDE files
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Package manager files
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Git
+.git/
+.gitignore
+
+# Logs
+*.log
+
+# Test coverage
+.nyc_output/
+
+# Release files
+.release-please-manifest.json
+CHANGELOG.md

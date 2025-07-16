@@ -1,0 +1,192 @@
+name: CI/CD
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  packages: write
+
+jobs:
+  test:
+    name: Test & Build
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [20.x]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 10.13.0
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download input.json if URL is provided in repository variables
+        if: vars.INPUT_JSON_URL != ''
+        run: |
+          echo "Downloading input.json from: ${{ vars.INPUT_JSON_URL }}"
+          curl -L -o codegen/input.json "${{ vars.INPUT_JSON_URL }}"
+
+      - name: Run tests with coverage
+        run: pnpm run test:coverage
+
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v4
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          files: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+
+      - name: Check coverage thresholds
+        run: |
+          echo "Checking coverage thresholds (minimum 80%)..."
+          pnpm run test:coverage
+
+      - name: Build packages
+        run: pnpm run build
+
+      - name: Upload build artifacts
+        if: matrix.node-version == '20.x'
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            packages/*/dist
+            packages/*/package.json
+
+  release-please:
+    name: Release Please
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Release Please
+        uses: google-github-actions/release-please-action@v4
+        id: release
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+
+      - name: Install pnpm
+        if: ${{ steps.release.outputs.releases_created }}
+        uses: pnpm/action-setup@v3
+        with:
+          version: 10.13.0
+
+      - name: Setup Node.js
+        if: ${{ steps.release.outputs.releases_created }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "pnpm"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        if: ${{ steps.release.outputs.releases_created }}
+        run: pnpm install --frozen-lockfile
+
+      - name: Download input.json from configured URL
+        if: ${{ steps.release.outputs.releases_created && vars.INPUT_JSON_URL != '' }}
+        run: |
+          echo "Downloading input.json from: ${{ vars.INPUT_JSON_URL }}"
+          curl -L -o codegen/input.json "${{ vars.INPUT_JSON_URL }}"
+
+      - name: Build packages
+        if: ${{ steps.release.outputs.releases_created }}
+        run: pnpm run build
+
+      - name: Publish to npm - widget-types
+        if: ${{ steps.release.outputs['packages/widget-types--release_created'] }}
+        run: |
+          cd packages/widget-types
+          npm config set //registry.npmjs.org/:_authToken $NODE_AUTH_TOKEN
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Publish to npm - widget
+        if: ${{ steps.release.outputs['packages/widget--release_created'] }}
+        run: |
+          cd packages/widget
+          npm config set //registry.npmjs.org/:_authToken $NODE_AUTH_TOKEN
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  deploy-dry-run:
+    name: Deploy Dry Run
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 10.13.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "pnpm"
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Download input.json if URL provided
+        if: vars.INPUT_JSON_URL != ''
+        run: |
+          echo "Downloading input.json from: ${{ vars.INPUT_JSON_URL }}"
+          curl -L -o codegen/input.json "${{ vars.INPUT_JSON_URL }}"
+
+      - name: Run codegen
+        run: pnpm run codegen
+
+      - name: Build packages
+        run: pnpm run build
+
+      - name: Dry run npm publish - widget-types
+        run: |
+          cd packages/widget-types
+          npm pack --dry-run
+          echo "✅ widget-types package is ready for publishing"
+
+      - name: Dry run npm publish - widget
+        run: |
+          cd packages/widget
+          npm pack --dry-run
+          echo "✅ widget package is ready for publishing"
