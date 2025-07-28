@@ -1,27 +1,47 @@
 {
-  "widget": {
-    "window": {
-      "title": "Sample Konfabulator Widget",
-      "name": "main_window",
-      "width": 500,
-      "height": 500
-    },
-    "image": {
-      "src": "Images/Sun.png",
-      "name": "sun1",
-      "hOffset": 250,
-      "vOffset": 250,
-      "alignment": "center"
-    },
-    "text": {
-      "data": "Click Here",
-      "size": 36,
-      "style": "bold",
-      "name": "text1",
-      "hOffset": 250,
-      "vOffset": 100,
-      "alignment": "center",
-      "onMouseUp": "sun1.opacity = (sun1.opacity / 100) * 90;"
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Sample API",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/users": {
+      "get": {
+        "summary": "Get all users",
+        "responses": {
+          "200": {
+            "description": "A list of users",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/User"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "number"
+          },
+          "name": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          }
+        }
+      }
     }
   }
 }
