@@ -39,8 +39,15 @@
           },
           "email": {
             "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/Status"
           }
         }
+      },
+      "Status": {
+        "type": "string",
+        "enum": ["active", "inactive"]
       }
     }
   }

@@ -9,11 +9,12 @@
     "build": "tsc",
     "clean": "rimraf dist",
     "generate": "npm run build && node dist/index.js",
-    "generate:valibot": "tsx src/valibot.ts",
+    "generate:valibot": "tsx src/valibot.ts -- --input ./input.json --output ./packages/widget-valibot/src/index.ts",
     "dev": "tsx src/index.ts"
   },
   "dependencies": {
     "change-case": "^5.2.0",
+    "minimist": "^1.2.8",
     "openapi-typescript": "^7.8.0",
     "prettier": "^3.1.0",
     "valibot": "^1.1.0"
